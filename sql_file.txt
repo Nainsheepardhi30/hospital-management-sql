@@ -1,0 +1,312 @@
+CREATE DATABASE hospital;
+USE hospital;
+CREATE TABLE departments(
+department_id INT PRIMARY KEY AUTO_INCREMENT,
+department_name VARCHAR(100) NOT NULL
+
+);
+
+
+CREATE TABLE doctors(
+doctor_id INT PRIMARY KEY AUTO_INCREMENT , 
+department_id INT ,
+name VARCHAR(50) ,
+specialization VARCHAR(100) ,
+role VARCHAR(200) ,
+FOREIGN KEY (department_id) REFERENCES departments(department_id)
+);
+
+CREATE TABLE patients(
+patient_id INT PRIMARY KEY AUTO_INCREMENT,
+name VARCHAR(50) NOT NULL,
+DOB DATE NOT NULL,
+gender VARCHAR(7) NOT NULL CHECK ( gender IN ("Female", "Male", "Outher")),
+phone VARCHAR(15)
+);
+
+
+CREATE TABLE appointments(
+appointment_id INT PRIMARY KEY AUTO_INCREMENT,
+patient_id INT ,
+doctor_id INT ,
+time DATETIME ,
+status VARCHAR(50) CHECK(Status IN ("Scheduled", "Completed", "Cancelled")),
+FOREIGN KEY (patient_id) REFERENCES patients(patient_id),
+FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id)
+);
+
+CREATE TABLE prescriptions(
+prescription_id INT PRIMARY KEY AUTO_INCREMENT,
+appointment_id INT ,
+medicine VARCHAR(100) ,
+dosage TEXT ,
+FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+);
+
+CREATE TABLE Bills(
+bill_id INT PRIMARY KEY AUTO_INCREMENT,
+appointment_id INT ,
+amount DECIMAL(20,2) ,
+status VARCHAR(10) ,
+date DATETIME DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+);
+
+CREATE TABLE labreports(
+report_id INT PRIMARY KEY AUTO_INCREMENT,
+appointment_id INT ,
+test_name VARCHAR(30) ,
+test_data TEXT,
+date DATETIME DEFAULT CURRENT_TIMESTAMP,
+FOREIGN KEY (appointment_id) REFERENCES appointments(appointment_id)
+);
+
+-- inserting values into department table
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "department_%";
+
+INSERT INTO departments(department_id,department_name)
+SELECT 
+department_id,
+department_name
+FROM hospital_data 
+WHERE department_id <> "";
+
+SELECT * FROM departments;
+
+-- inserting values into doctor table
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "doctor_%";
+
+INSERT INTO doctors(doctor_id,department_id,name,specialization,role)
+SELECT 
+doctor_doctor_id,
+doctor_department_id,
+doctor_doctor_name,
+doctor_doctor_specialization,
+doctor_doctor_role 
+FROM hospital_data
+WHERE doctor_doctor_id <> "";
+
+SELECT * FROM doctors;
+
+-- inserting values into patients table
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "patient_%";
+
+INSERT INTO patients(DOB,gender,patient_id,name,phone)
+SELECT 
+STR_TO_DATE(patient_patient_DOB,'%d-%m-%Y %H:%i'),
+patient_patient_gender,
+patient_patient_id,
+patient_patient_name,
+patient_patient_number 
+FROM hospital_data 
+WHERE patient_patient_DOB <> "";
+
+SELECT * FROM patients;
+
+-- inserting values into appointments table
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "appointment_%";
+
+INSERT INTO appointments(appointment_id,time,doctor_id,patient_id,status)
+SELECT 
+appointment_appointment_id,
+STR_TO_DATE(appointment_appointment_time, '%d-%m-%Y %H:%i'),
+appointment_doctor_id,
+appointment_patient_id,
+appointment_status 
+FROM hospital_data 
+WHERE appointment_appointment_id <> "";
+
+SELECT * FROM appointments;
+
+-- inserting values into  table prescriptions
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "prescription_%";
+
+INSERT INTO prescriptions(prescription_id,appointment_id,medicine,dosage)
+SELECT 
+prescription_prescription_id,
+prescription_appointment_id,
+prescription_medicine,
+prescription_dosage 
+FROM hospital_data 
+WHERE prescription_prescription_id <> "";
+
+SELECT * FROM prescriptions;
+
+-- inserting values into  table bills
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "bill_%";
+
+INSERT INTO bills(bill_id,appointment_id,amount,status,date)
+SELECT 
+bill_bill_id,
+bill_appointment_id,
+bill_bill_amount,
+bill_bill_status,
+STR_TO_DATE(bill_bill_date,'%d-%m-%Y %H:%i') 
+FROM hospital_data 
+WHERE bill_bill_id <> "";
+
+SELECT * FROM bills;
+
+-- inserting values into  table labreports
+
+SELECT CONCAT("SELECT ",GROUP_CONCAT(column_name)," FROM hospital_data ;") FROM information_schema.columns
+WHERE TABLE_SCHEMA = "hospital"
+AND table_name = "hospital_data"
+AND column_name LIKE "labreport_%";
+
+INSERT INTO labreports(report_id,appointment_id,test_name,test_data,date)
+SELECT 
+labreport_labreport_id,
+labreport_appointment_id,
+labreport_test_name,
+labreport_test_data,
+STR_TO_DATE(labreport_report_date,'%d-%m-%Y %H:%i') 
+FROM hospital_data
+WHERE labreport_labreport_id <> "";
+
+SELECT count(*) FROM labreports;
+
+
+-- POINT 4
+
+DELIMITER $$
+	CREATE TRIGGER check_new_appointment
+	BEFORE INSERT ON appointments
+	FOR EACH ROW
+
+	BEGIN
+		IF NEW.time < NOW() THEN
+			SIGNAL SQLSTATE "45000"
+			SET MESSAGE_TEXT = "ERROR : appointment can not be in the past.";
+		END IF ;
+    
+		IF EXISTS (
+					SELECT * FROM appointments 
+					WHERE doctor_id = new.doctor_id
+					AND time = NEW.time
+                    AND status IN ("Scheduled")
+					)
+				THEN 
+					SIGNAL SQLSTATE "45000"
+					SET MESSAGE_TEXT = "ERROR : Doctor already has an appointment at this time ." ;
+		END IF;
+    
+	END $$ 
+                
+DELIMITER
+
+
+INSERT INTO appointments (appointment_id,patient_id,doctor_id,time,status)
+VALUES (2502,1,1,"2026-09-5 12:15:00","Scheduled");
+
+
+INSERT INTO appointments (appointment_id,patient_id,doctor_id,time,status)
+VALUES (2503,1,1,"2026-09-3 12:15:00","Scheduled")
+
+
+
+
+
+
+-- POINT 5
+
+DELIMITER $$
+
+CREATE PROCEDURE view_doctor_data(IN input_username VARCHAR(100) , IN input_password VARCHAR(100))
+BEGIN 
+	DECLARE doc_role VARCHAR(100);
+    DECLARE doc_dept INT ;
+    DECLARE doc_id INT ;
+    
+-- CHECK CREDENTIAL OF THE DOCTOR
+	SELECT doctor_id INTO doc_id
+	FROM doctor_credentials
+	WHERE user_name = input_username 
+	AND password = input_password ;
+    
+-- GET ROLE AND DEPARTMENT IN DOCTORS TABLE
+	SELECT role, department_id 
+    INTO doc_role, doc_dept
+    FROM doctors
+    WHERE doctor_id = doc_id;
+    
+-- SHOE APPROPRIATE PATENTS DATA 
+	IF doc_role = "Senior Consultant" THEN 
+	   SELECT 
+	   d.doctor_id ,p.patient_id , p.name, p.gender,
+	   a.time, 
+	   pr.medicine,
+       lb.test_data
+       FROM patients AS p INNER JOIN 
+       appointments AS a ON a.patient_id = p.patient_id
+       JOIN doctors d ON d.doctor_id = a.doctor_id
+       LEFT JOIN prescriptions as pr ON a.appointment_id = pr.appointment_id
+       LEFT JOIN labreports AS lb ON a.appointment_id = lb.appointment_id
+       WHERE d.department_id = doc_dept;
+	ELSE
+	   SELECT 
+	   a.doctor_id, p.patient_id , p.name, p.gender,
+	   a.time, 
+	   pr.medicine,
+       lb.test_data
+       FROM patients AS p INNER JOIN 
+       appointments AS a ON a.patient_id = p.patient_id
+       LEFT JOIN prescriptions as pr ON a.appointment_id = pr.appointment_id
+       LEFT JOIN labreports AS lb ON a.appointment_id = lb.appointment_id
+       WHERE a.doctor_id = doc_id;  
+    END IF ;
+    
+
+	
+END $$ 
+
+DELIMITER
+
+
+CALL view_doctor_data("sunita.kapoor", "ynr9QOlWkz")
+
+
+-- POINT 6
+DELIMITER $$
+CREATE PROCEDURE sp_monthly_revenue(IN p_year INT , IN p_month INT)
+
+BEGIN 
+ SELECT d1.department_name AS department ,
+	SUM(b.amount) AS total_revenue
+ FROM bills AS b
+	INNER JOIN appointments AS a ON a.appointment_id = b.appointment_id
+	INNER JOIN doctors AS d ON a.doctor_id = d.doctor_id
+	INNER JOIN departments AS d1 ON d1.department_id = d.department_id
+	WHERE MONTH(B.date) = p_month AND  YEAR(B.date)=p_year
+ GROUP BY d1.department_name;
+END $$
+DELIMITER
+
+
+CALL sp_monthly_revenue("2025", "5")
+
+
